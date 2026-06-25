@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artist Operating System</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f3; --bg3: #eeecea;
+    --ink: #1a1a18; --mute: #6b6b67; --hint: #ababA6;
+    --bord: rgba(0,0,0,0.10); --bord2: rgba(0,0,0,0.18);
+    --blue: #185FA5; --blue-bg: #E6F1FB;
+    --green: #0F6E56; --green-bg: #E1F5EE;
+    --amber: #854F0B; --amber-bg: #FAEEDA;
+    --red: #A32D2D; --red-bg: #FCEBEB;
+    --gray: #5F5E5A; --gray-bg: #F1EFE8;
+    --r: 8px; --rl: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+      --ink: #f0ede8; --mute: #999892; --hint: #666460;
+      --bord: rgba(255,255,255,0.10); --bord2: rgba(255,255,255,0.18);
+      --blue: #85B7EB; --blue-bg: #042C53;
+      --green: #5DCAA5; --green-bg: #04342C;
+      --amber: #EF9F27; --amber-bg: #412402;
+      --red: #F09595; --red-bg: #501313;
+      --gray: #B4B2A9; --gray-bg: #2C2C2A;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg2); color: var(--ink); font-size: 15px; line-height: 1.55; min-height: 100vh; }
+  header { background: var(--bg); border-bottom: 0.5px solid var(--bord); padding: 0 1.5rem; display: flex; align-items: center; height: 52px; position: sticky; top: 0; z-index: 100; }
+  header .logo { font-size: 15px; font-weight: 500; }
+  header .logo span { color: var(--mute); font-weight: 400; }
+  nav { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 0 1.5rem; background: var(--bg); border-bottom: 0.5px solid var(--bord); }
+  nav::-webkit-scrollbar { display: none; }
+  .nav-tab { padding: 10px 14px; font-size: 13px; color: var(--mute); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: color .15s, border-color .15s; user-select: none; }
+  .nav-tab:hover { color: var(--ink); }
+  .nav-tab.on { color: var(--ink); border-bottom-color: var(--ink); font-weight: 500; }
+  main { max-width: 800px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+  .panel { display: none; } .panel.on { display: block; }
+  .card { background: var(--bg); border: 0.5px solid var(--bord); border-radius: var(--rl); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .card h3 { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; color: var(--hint); margin-bottom: .75rem; }
+  .metric-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1rem; }
+  .metric { background: var(--bg2); border-radius: var(--r); padding: .75rem 1rem; }
+  .metric .lbl { font-size: 12px; color: var(--mute); margin-bottom: 3px; }
+  .metric .val { font-size: 22px; font-weight: 500; }
+  .metric .sub { font-size: 12px; color: var(--hint); }
+  .pill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 100px; font-weight: 500; white-space: nowrap; }
+  .pill-must   { background: var(--blue-bg);  color: var(--blue); }
+  .pill-should { background: var(--green-bg); color: var(--green); }
+  .pill-nice   { background: var(--gray-bg);  color: var(--gray); }
+  .pill-warn   { background: var(--amber-bg); color: var(--amber); }
+  .pill-done   { background: var(--green-bg); color: var(--green); }
+  .pill-open   { background: var(--red-bg);   color: var(--red); }
+  .row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: .55rem 0; border-bottom: 0.5px solid var(--bord); }
+  .row:last-child { border-bottom: none; }
+  .row-label { font-size: 14px; flex: 1; }
+  .row-meta  { font-size: 12px; color: var(--mute); margin-top: 2px; }
+  .tag { font-size: 11px; padding: 2px 7px; border-radius: 100px; border: 0.5px solid var(--bord2); color: var(--mute); display: inline-block; margin: 2px 2px 2px 0; }
+  .section-title { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; color: var(--hint); margin: 1.5rem 0 .5rem; }
+  .release-phase { border-left: 2px solid var(--blue); padding-left: 1rem; margin-bottom: 1rem; }
+  .release-phase.green { border-color: var(--green); }
+  .release-phase.amber { border-color: var(--amber); }
+  .release-phase.gray  { border-color: var(--hint); }
+  .phase-header { font-size: 13px; font-weight: 500; color: var(--blue); margin-bottom: .4rem; }
+  .release-phase.green .phase-header { color: var(--green); }
+  .release-phase.amber .phase-header { color: var(--amber); }
+  .release-phase.gray  .phase-header { color: var(--mute); }
+  .phase-item { font-size: 13px; padding: .2rem 0; display: flex; gap: 8px; align-items: flex-start; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--blue); margin-top: 6px; flex-shrink: 0; }
+  .week-grid { display: grid; grid-template-columns: 90px 1fr; }
+  .wday { font-size: 12px; font-weight: 500; color: var(--mute); padding: .55rem 0; border-bottom: 0.5px solid var(--bord); }
+  .wtasks { font-size: 13px; padding: .55rem 0; border-bottom: 0.5px solid var(--bord); }
+  .wtasks span { display: block; margin-bottom: 2px; }
+  .wday:last-of-type, .wtasks:last-of-type { border-bottom: none; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 540px) { .two-col { grid-template-columns: 1fr; } }
+  .budget-item { display: flex; justify-content: space-between; align-items: center; padding: .5rem 0; border-bottom: 0.5px solid var(--bord); font-size: 14px; }
+  .budget-item:last-child { border-bottom: none; }
+  .budget-total { display: flex; justify-content: space-between; align-items: center; padding: .6rem 0 0; font-size: 14px; font-weight: 500; border-top: 1px solid var(--bord2); margin-top: .25rem; }
+  .budget-bar-wrap { background: var(--bg2); border-radius: 100px; height: 5px; width: 100%; margin-top: .75rem; overflow: hidden; }
+  .budget-bar { height: 5px; border-radius: 100px; transition: width .3s; }
+  .mvas-lever { display: flex; gap: 12px; align-items: flex-start; padding: .75rem 0; border-bottom: 0.5px solid var(--bord); }
+  .mvas-lever:last-child { border-bottom: none; }
+  .mvas-num { font-size: 22px; font-weight: 500; color: var(--blue); min-width: 28px; }
+  .mvas-text .title { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+  .mvas-text .desc  { font-size: 13px; color: var(--mute); }
+  .song-card { background: var(--bg2); border-radius: var(--r); padding: .75rem 1rem; margin-bottom: .5rem; }
+  .song-card:last-child { margin-bottom: 0; }
+  .song-title { font-size: 14px; font-weight: 500; margin-bottom: .25rem; }
+  .song-meta  { font-size: 12px; color: var(--mute); }
+  .sdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .risk-item { padding: .75rem 0; border-bottom: 0.5px solid var(--bord); }
+  .risk-item:last-child { border-bottom: none; }
+  .risk-title { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .risk-fix   { font-size: 13px; color: var(--mute); }
+  input[type=text], textarea, select { width: 100%; font-size: 14px; font-family: inherit; background: var(--bg2); border: 0.5px solid var(--bord2); border-radius: var(--r); padding: .5rem .8rem; color: var(--ink); outline: none; transition: border-color .15s; }
+  input[type=text]:focus, textarea:focus, select:focus { border-color: var(--blue); }
+  textarea { resize: vertical; min-height: 70px; }
+  .form-row { margin-bottom: .75rem; }
+  .form-label { font-size: 12px; color: var(--mute); margin-bottom: 4px; display: block; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; font-size: 13px; font-family: inherit; border: 0.5px solid var(--bord2); border-radius: var(--r); background: var(--bg2); color: var(--ink); cursor: pointer; transition: background .12s; }
+  .btn:hover { background: var(--bg3); }
+  .btn-primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .btn-primary:hover { opacity: .85; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .idea-entry { display: flex; justify-content: space-between; align-items: flex-start; padding: .45rem 0; border-bottom: 0.5px solid var(--bord); font-size: 13px; gap: 10px; }
+  .idea-entry:last-child { border-bottom: none; }
+  .del-btn { cursor: pointer; color: var(--hint); font-size: 16px; line-height: 1; flex-shrink: 0; background: none; border: none; padding: 0; font-family: inherit; }
+  .del-btn:hover { color: var(--red); }
+  .check-item { display: flex; align-items: flex-start; gap: 10px; padding: .45rem 0; border-bottom: 0.5px solid var(--bord); font-size: 14px; cursor: pointer; user-select: none; }
+  .check-item:last-child { border-bottom: none; }
+  .check-item input[type=checkbox] { margin-top: 3px; flex-shrink: 0; accent-color: var(--blue); }
+  .check-item.checked .check-label { text-decoration: line-through; color: var(--hint); }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 1rem; }
+  .kpi-card { background: var(--bg2); border-radius: var(--r); padding: .75rem 1rem; display: flex; flex-direction: column; gap: 4px; }
+  .kpi-lbl { font-size: 12px; color: var(--mute); }
+  .kpi-val { font-size: 20px; font-weight: 500; }
+  .mt1 { margin-top: .75rem; } .mt2 { margin-top: 1.25rem; }
+  .flex { display: flex; } .gap2 { gap: .5rem; }
+  .mute { color: var(--mute); } .small { font-size: 12px; }
+  .hidden { display: none; }
+  .empty { font-size: 13px; color: var(--hint); padding: .75rem 0; font-style: italic; }
+  .kpi-inline-form { background: var(--bg2); border-radius: var(--r); border: 0.5px solid var(--bord2); padding: 1rem; margin-top: .75rem; }
+  .kpi-inline-form h4 { font-size: 13px; font-weight: 500; margin-bottom: .75rem; color: var(--mute); text-transform: uppercase; letter-spacing: .04em; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Artist OS <span>— Dein persönliches Karriere-System</span></div>
+</header>
+
+<nav id="nav">
+  <div class="nav-tab on"  data-panel="0">Prioritäten</div>
+  <div class="nav-tab"     data-panel="1">Release-Plan</div>
+  <div class="nav-tab"     data-panel="2">Wochenplan</div>
+  <div class="nav-tab"     data-panel="3">Budget</div>
+  <div class="nav-tab"     data-panel="4">MVAS</div>
+  <div class="nav-tab"     data-panel="5">Video</div>
+  <div class="nav-tab"     data-panel="6">KPIs</div>
+  <div class="nav-tab"     data-panel="7">Risiken</div>
+  <div class="nav-tab"     data-panel="8">Ideen</div>
+</nav>
+
+<main>
+
+<!-- PANEL 0 — Prioritäten -->
+<div class="panel on" id="panel-0">
+  <div class="metric-row">
+    <div class="metric"><div class="lbl">Nächster Release</div><div class="val" id="kpi-next-release">—</div><div class="sub">Song-Titel eintragen</div></div>
+    <div class="metric"><div class="lbl">Tageszeit</div><div class="val">30 min</div><div class="sub">max. verfügbar</div></div>
+    <div class="metric"><div class="lbl">Budget / Song</div><div class="val">500 €</div><div class="sub">Gesamtlimit</div></div>
+    <div class="metric"><div class="lbl">EP-Songs</div><div class="val">4</div><div class="sub">geplant</div></div>
+  </div>
+
+  <div class="section-title">Diese Woche — Checkliste</div>
+  <div class="card">
+    <div id="weekly-checks"></div>
+    <div class="flex gap2 mt1">
+      <input type="text" id="check-input" placeholder="Neue Aufgabe hinzufügen…" style="flex:1" onkeydown="if(event.key==='Enter')addCheck()">
+      <button class="btn btn-sm" onclick="addCheck()">+ Hinzufügen</button>
+    </div>
+    <button class="btn btn-sm mt1" onclick="resetChecks()" style="color:var(--mute)">Woche zurücksetzen</button>
+  </div>
+
+  <div class="section-title">Offene Entscheidungen</div>
+  <div class="card">
+    <div id="decisions-list"></div>
+    <div class="flex gap2 mt1">
+      <input type="text" id="decision-input" placeholder="Neue offene Entscheidung…" style="flex:1" onkeydown="if(event.key==='Enter')addDecision()">
+      <button class="btn btn-sm" onclick="addDecision()">+ Hinzufügen</button>
+    </div>
+  </div>
+
+  <div class="section-title">Empfohlene erste Schritte</div>
+  <div class="card">
+    <div class="row"><div><div class="row-label">Spotify Editorial Pitch einreichen</div><div class="row-meta">Spätestens 7 Tage vor Release · 20 min · 0 €</div></div><span class="pill pill-must">Must Have</span></div>
+    <div class="row"><div><div class="row-label">Release-Upload bei Distrokid/TuneCore terminieren</div><div class="row-meta">Mindestens 3 Wochen Vorlauf nötig</div></div><span class="pill pill-must">Must Have</span></div>
+    <div class="row"><div><div class="row-label">Pressetext für Song 1 fertigstellen</div><div class="row-meta">~30 min · Vorlage im Release-Plan</div></div><span class="pill pill-must">Must Have</span></div>
+    <div class="row"><div><div class="row-label">5–10 Playlist-Kuratoren über SubmitHub anschreiben</div><div class="row-meta">~30 min · 10–30 € · 4 Wochen vor Release</div></div><span class="pill pill-should">Should Have</span></div>
+    <div class="row"><div><div class="row-label">Newsletter-Tool wählen (Substack empfohlen)</div><div class="row-meta">~15 min · 0 €</div></div><span class="pill pill-should">Should Have</span></div>
+    <div class="row"><div><div class="row-label">Video-Drehtag koordinieren (Batch: Song 1 + 2)</div><div class="row-meta">Freunde anfragen · Location scouten</div></div><span class="pill pill-should">Should Have</span></div>
+  </div>
+</div>
+
+<!-- PANEL 1 — Release-Plan -->
+<div class="panel" id="panel-1">
+  <div class="card">
+    <h3>EP-Sequenz — Empfohlene Reihenfolge</h3>
+    <div class="song-card"><div class="song-title"><span class="sdot" style="background:#378ADD"></span>Song 1 — Ankersong</div><div class="song-meta">Stärkster Song · stellt deine künstlerische Welt vor · Monat 1</div><div style="margin-top:6px"><span class="tag">Editorial Pitch</span><span class="tag">Musikvideo</span><span class="tag">Pressetext</span><span class="tag">Playlist-Outreach</span></div></div>
+    <div class="song-card"><div class="song-title"><span class="sdot" style="background:#BA7517"></span>Song 2 — Vertiefung</div><div class="song-meta">Baut auf Song 1 auf · vertieft die Welt · Monat 2</div><div style="margin-top:6px"><span class="tag">Musikvideo</span><span class="tag">Playlist-Outreach</span><span class="tag">Reels/TikTok</span></div></div>
+    <div class="song-card"><div class="song-title"><span class="sdot" style="background:#BA7517"></span>Song 3 — Brücke</div><div class="song-meta">Zeigt eine andere Facette · Varianz · Monat 3</div><div style="margin-top:6px"><span class="tag">Musikvideo</span><span class="tag">Kollabo-Chance</span></div></div>
+    <div class="song-card"><div class="song-title"><span class="sdot" style="background:#888780"></span>Song 4 + EP-Release</div><div class="song-meta">Letzte Single 1–2 Wochen vor EP · EP bündelt alles · Monat 4</div><div style="margin-top:6px"><span class="tag">EP-Artwork</span><span class="tag">EP-Pressetext</span><span class="tag">Live-Event?</span></div></div>
+  </div>
+
+  <div class="card">
+    <h3>Maßnahmen-Zeitplan pro Song</h3>
+    <div class="release-phase">
+      <div class="phase-header">6 Wochen vor Release</div>
+      <div class="phase-item"><div class="dot"></div><div>Distributor-Upload terminieren — 15 min · Must Have · 0 €</div></div>
+      <div class="phase-item"><div class="dot"></div><div>Pressetext schreiben (200 Wörter) — 30 min · Must Have · 0 €</div></div>
+      <div class="phase-item"><div class="dot"></div><div>Cover Artwork finalisieren — 30 min · Must Have · 0–50 €</div></div>
+      <div class="phase-item"><div class="dot"></div><div>Spotify Canvas vorbereiten (8-Sekunden-Loop) — 15 min · Should · 0 €</div></div>
+    </div>
+    <div class="release-phase">
+      <div class="phase-header">4 Wochen vor Release</div>
+      <div class="phase-item"><div class="dot"></div><div>Spotify Editorial Pitch (Spotify for Artists) — 20 min · Must Have · 0 €</div></div>
+      <div class="phase-item"><div class="dot"></div><div>5–10 Playlist-Kuratoren via SubmitHub — 30 min · Should · 10–30 €</div></div>
+      <div class="phase-item"><div class="dot"></div><div>Teaser-Clip für Instagram/TikTok aufnehmen — 20 min · Should · 0 €</div></div>
+      <div class="phase-item"><div class="dot"></div><div>1–2 Indie-Blogs anschreiben — 20 min · Nice · 0 €</div></div>
+    </div>
+    <div class="release-phase">
+      <div class="phase-header">2 Wochen vor Release</div>
+      <div class="phase-item"><div class="dot"></div><div>Pre-Save-Link erstellen und teilen — 10 min · Should · 0 €</div></div>
+      <div class="phase-item"><div class="dot"></div><div>Newsletter-Ankündigung senden — 20 min · Must Have · 0 €</div></div>
+      <div class="phase-item"><div class="dot"></div><div>Zweiter Teaser posten — 10 min · Should · 0 €</div></div>
+    </div>
+    <div class="release-phase green">
+      <div class="phase-header">Release-Woche</div>
+      <div class="phase-item"><div class="dot" style="background:var(--green)"></div><div>Song live + Musikvideo veröffentlichen — 20 min · Must · 0 €</div></div>
+      <div class="phase-item"><div class="dot" style="background:var(--green)"></div><div>Story + Reel + Behind-the-Scenes — 20 min/Tag · Should · 0 €</div></div>
+      <div class="phase-item"><div class="dot" style="background:var(--green)"></div><div>Newsletter: Release + persönliche Geschichte — 20 min · Must · 0 €</div></div>
+      <div class="phase-item"><div class="dot" style="background:var(--green)"></div><div>Paid Boost Instagram (optional) — 10 min · Nice · 50–100 €</div></div>
+    </div>
+    <div class="release-phase gray">
+      <div class="phase-header">2 Wochen nach Release</div>
+      <div class="phase-item"><div class="dot" style="background:var(--hint)"></div><div>Spotify-Daten auswerten — 15 min · Should · 0 €</div></div>
+      <div class="phase-item"><div class="dot" style="background:var(--hint)"></div><div>Video-Footage nachverwerten — 15 min/Clip · Should · 0 €</div></div>
+      <div class="phase-item"><div class="dot" style="background:var(--hint)"></div><div>Release-Retro: Was lief gut? Was weglassen? — 20 min · Should · 0 €</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Pressetext-Template</h3>
+    <div style="font-size:13px;color:var(--mute);line-height:1.7;background:var(--bg2);border-radius:var(--r);padding:.85rem 1rem;">
+      <strong style="color:var(--ink)">[SONGTITEL]</strong> ist der neue Song von <strong style="color:var(--ink)">[KÜNSTLERNAME]</strong>, einem unabhängigen Singer/Songwriter aus [ORT].<br><br>
+      Der Song handelt von [THEMA IN EINEM SATZ]. In einer Zeit, in der [KONTEXT], erkundet [KÜNSTLERNAME] [KERNFRAGE DES SONGS].<br><br>
+      Musikalisch bewegt sich [KÜNSTLERNAME] im Spannungsfeld zwischen [REFERENZ 1] und [REFERENZ 2]. Die Produktion von [SONGTITEL] zeichnet sich durch [KLANGBESCHREIBUNG] aus — [ATMOSPHÄRE] trifft auf [EIGENSCHAFT].<br><br>
+      [KÜNSTLERNAME] veröffentlicht [SONGTITEL] am [DATUM] als erste Single der kommenden EP [EP-TITEL].<br><br>
+      <em style="color:var(--hint)">Kontakt: [E-MAIL]</em>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL 2 — Wochenplan -->
+<div class="panel" id="panel-2">
+  <div class="card">
+    <h3>Exemplarischer Wochenplan — max. 30 min/Tag</h3>
+    <div class="week-grid">
+      <div class="wday">Montag</div><div class="wtasks"><span>Streams + Kommentare reviewen (10 min)</span><span>1 Story oder Reel planen / posten (10 min)</span><span>Posteingang Musik beantworten (10 min)</span></div>
+      <div class="wday">Dienstag</div><div class="wtasks"><span>Content erstellen: Clip, Foto oder Text (20 min)</span><span>Newsletter-Entwurf starten oder ergänzen (10 min)</span></div>
+      <div class="wday">Mittwoch</div><div class="wtasks"><span>Playlist- oder Presse-Outreach (15 min)</span><span>Songwriting-Notiz / nächstes Projekt (15 min)</span></div>
+      <div class="wday">Donnerstag</div><div class="wtasks"><span>Content posten + Community-Antworten (20 min)</span><span>Footage sichten oder schneiden (10 min)</span></div>
+      <div class="wday">Freitag</div><div class="wtasks"><span>Wöchentliches 30-min-Review</span><span>Nächste Woche planen (im Review enthalten)</span></div>
+      <div class="wday">Samstag</div><div class="wtasks"><span>Batch-Produktion: mehrere Clips oder Fotos (30 min)</span></div>
+      <div class="wday">Sonntag</div><div class="wtasks"><span>🌿 Ruhetag — keine Musik-Tasks.</span></div>
+    </div>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <h3>Automatisieren</h3>
+      <div class="row"><div class="row-label">Post-Scheduling (Buffer oder Later)</div></div>
+      <div class="row"><div class="row-label">Release-Upload via Distrokid</div></div>
+      <div class="row"><div class="row-label">Willkommens-Mail im Newsletter</div></div>
+      <div class="row"><div class="row-label">Spotify Canvas loop einrichten</div></div>
+      <div class="row"><div class="row-label">Pre-Save-Link via Distrokid SmartLinks</div></div>
+    </div>
+    <div class="card">
+      <h3>Bewusst weglassen</h3>
+      <div class="row"><div class="row-label">Twitter/X aktiv bespielen</div></div>
+      <div class="row"><div class="row-label">Facebook-Seite pflegen</div></div>
+      <div class="row"><div class="row-label">YouTube SEO-Strategie betreiben</div></div>
+      <div class="row"><div class="row-label">Täglich auf allen Kanälen posten</div></div>
+      <div class="row"><div class="row-label">Follower kaufen oder Botting</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Review-Zyklen</h3>
+    <div class="row"><div><div class="row-label">Wöchentlich — 30 min (Freitag)</div><div class="row-meta">Offene Tasks, Prioritäten, nächste Woche planen</div></div><span class="pill pill-must">Kern</span></div>
+    <div class="row"><div><div class="row-label">Monatlich — 60 min</div><div class="row-meta">Zahlen, Content-Auswertung, nächster Release vorbereiten</div></div><span class="pill pill-must">Kern</span></div>
+    <div class="row"><div><div class="row-label">Release-Retro — nach jedem Song</div><div class="row-meta">Was lief gut? Was weglassen? Was kostet zu viel?</div></div><span class="pill pill-should">Should</span></div>
+    <div class="row"><div><div class="row-label">Quartalsreview — 90 min</div><div class="row-meta">Wachstumslogik, Kanalstrategie, Budget-Check</div></div><span class="pill pill-should">Should</span></div>
+    <div class="row"><div><div class="row-label">Jahresreview — halber Tag</div><div class="row-meta">Karriereziele, künstlerische Identität, System anpassen</div></div><span class="pill pill-nice">Nice</span></div>
+  </div>
+</div>
+
+<!-- PANEL 3 — Budget -->
+<div class="panel" id="panel-3">
+  <div class="card">
+    <h3>Budgetverteilung pro Song — max. 500 €</h3>
+    <div id="budget-items"></div>
+    <div class="budget-total"><span>Gesamt</span><span id="budget-total-val">500 €</span></div>
+    <div class="budget-bar-wrap mt1"><div class="budget-bar" id="budget-bar" style="width:0%"></div></div>
+    <div class="small mute mt1" id="budget-remaining">0 € ausgegeben · 500 € verbleiben</div>
+  </div>
+  <div class="card">
+    <h3>Ausgaben erfassen (laufend)</h3>
+    <div id="expenses-list"></div>
+    <div class="flex gap2 mt1" style="flex-wrap:wrap">
+      <input type="text" id="exp-name" placeholder="Ausgabe (z.B. SubmitHub)" style="flex:1;min-width:120px" onkeydown="if(event.key==='Enter')addExpense()">
+      <input type="text" id="exp-amount" placeholder="Betrag €" style="width:90px" onkeydown="if(event.key==='Enter')addExpense()">
+      <button class="btn btn-sm" onclick="addExpense()">+ Hinzufügen</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Hebelkraft — Maßnahmen im Vergleich</h3>
+    <div class="row"><div><div class="row-label">Spotify Editorial Pitch</div><div class="row-meta">0 € · 20 min · potenziell Tausende Streams</div></div><span class="pill pill-must">höchster Hebel</span></div>
+    <div class="row"><div><div class="row-label">Newsletter aufbauen</div><div class="row-meta">0 € · 20 min/Release · loyalste Zielgruppe</div></div><span class="pill pill-must">langfristig #1</span></div>
+    <div class="row"><div><div class="row-label">SubmitHub Playlist-Pitching</div><div class="row-meta">~30 € · 30 min · planbare Reichweite</div></div><span class="pill pill-should">gut</span></div>
+    <div class="row"><div><div class="row-label">Instagram Reels / TikTok</div><div class="row-meta">0 € · ~15 min/Woche · organisches Wachstum</div></div><span class="pill pill-should">gut</span></div>
+    <div class="row"><div><div class="row-label">Paid Social Boost</div><div class="row-meta">50–100 € · schnelle Reichweite, aber temporär</div></div><span class="pill pill-nice">sinnvoll</span></div>
+    <div class="row"><div><div class="row-label">PR-Agentur</div><div class="row-meta">300–1000 €/Monat · zu teuer für dieses Budget</div></div><span class="pill pill-warn">nicht empfohlen</span></div>
+  </div>
+</div>
+
+<!-- PANEL 4 — MVAS -->
+<div class="panel" id="panel-4">
+  <div class="card">
+    <h3>Minimum Viable Artist System — die 3 größten Hebel</h3>
+    <div class="mvas-lever"><div class="mvas-num">1</div><div class="mvas-text"><div class="title">Spotify Editorial Pitch — jedes Mal, ohne Ausnahme</div><div class="desc">Kostet nichts, dauert 20 Minuten, kann Tausende Streams bringen. Immer 7+ Tage vor Release einreichen.</div></div></div>
+    <div class="mvas-lever"><div class="mvas-num">2</div><div class="mvas-text"><div class="title">Newsletter aufbauen — langsam, aber dauerhaft</div><div class="desc">100 echte Abonnenten sind wertvoller als 10.000 passive Follower. Algorithmen ändern sich; deine Liste gehört dir. Substack ist kostenlos und einfach.</div></div></div>
+    <div class="mvas-lever"><div class="mvas-num">3</div><div class="mvas-text"><div class="title">Konsequenter Release-Rhythmus statt Perfektion</div><div class="desc">Monatlich eine Single zu veröffentlichen ist wichtiger als den perfekten Song jahrelang zu horten.</div></div></div>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <h3>Fokus-Plattformen (max. 2–3)</h3>
+      <div class="row"><div><div class="row-label">Spotify</div><div class="row-meta">Streaming + Editorial + Canvas</div></div><span class="pill pill-must">Kern</span></div>
+      <div class="row"><div><div class="row-label">Instagram</div><div class="row-meta">Reels + Stories + Authentizität</div></div><span class="pill pill-must">Kern</span></div>
+      <div class="row"><div><div class="row-label">YouTube</div><div class="row-meta">Musikvideos (langfristiger Wert)</div></div><span class="pill pill-should">sekundär</span></div>
+      <div class="row"><div><div class="row-label">Newsletter</div><div class="row-meta">Plattform-unabhängig · dein Fundament</div></div><span class="pill pill-must">Kern</span></div>
+      <div class="row"><div><div class="row-label">TikTok</div><div class="row-meta">Nur wenn du Spaß daran hast</div></div><span class="pill pill-nice">optional</span></div>
+    </div>
+    <div class="card">
+      <h3>80 / 20 — Regeln</h3>
+      <div class="row"><div class="row-label">20 % der Maßnahmen bringen 80 % der Streams: Editorial + Playlist + Newsletter</div></div>
+      <div class="row"><div class="row-label">Ein guter Song schlägt 10 mittelmäßige Marketingaktionen</div></div>
+      <div class="row"><div class="row-label">Batch-Produktion spart 60–70 % Zeit bei Video und Content</div></div>
+      <div class="row"><div class="row-label">Weniger Plattformen, mehr Tiefe = mehr Wirkung</div></div>
+      <div class="row"><div class="row-label">Konsistenz über 2 Jahre > viraler Moment</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL 5 — Video -->
+<div class="panel" id="panel-5">
+  <div class="card">
+    <h3>Kernprinzip: Batch-Produktion</h3>
+    <div class="release-phase">
+      <div class="phase-header">2 Videos an einem Drehtag</div>
+      <div class="phase-item"><div class="dot"></div><div>Equipment einmal aufbauen, für beide Songs nutzen</div></div>
+      <div class="phase-item"><div class="dot"></div><div>Gleiche Locations, Darsteller:innen, Farbwelt → visuelle EP-Konsistenz</div></div>
+      <div class="phase-item"><div class="dot"></div><div>Footage aus Video 1 als B-Roll für Teaser von Song 2 nutzen</div></div>
+      <div class="phase-item"><div class="dot"></div><div>Zwei Drehtage für vier Videos = maximale Effizienz</div></div>
+    </div>
+    <div class="release-phase green">
+      <div class="phase-header">Formate pro Song (1 Drehtag → 4 Outputs)</div>
+      <div class="phase-item"><div class="dot" style="background:var(--green)"></div><div><strong>Hauptvideo</strong> (3–5 min) → YouTube + Presskit</div></div>
+      <div class="phase-item"><div class="dot" style="background:var(--green)"></div><div><strong>Kurzversion</strong> (60–90 sec) → Instagram Reels</div></div>
+      <div class="phase-item"><div class="dot" style="background:var(--green)"></div><div><strong>Teaser</strong> (15–30 sec) → TikTok + Stories</div></div>
+      <div class="phase-item"><div class="dot" style="background:var(--green)"></div><div><strong>Behind the Scenes</strong> (1–2 min) → Instagram / YouTube</div></div>
+    </div>
+    <div class="release-phase amber">
+      <div class="phase-header">Produktionsprinzipien</div>
+      <div class="phase-item"><div class="dot" style="background:var(--amber)"></div><div>Goldene Stunde: kostenlos, kinematografisch, zur Ästhetik passend</div></div>
+      <div class="phase-item"><div class="dot" style="background:var(--amber)"></div><div>Natur, Wälder, leere Räume: zeitlos und stimmig für Folk/Indie</div></div>
+      <div class="phase-item"><div class="dot" style="background:var(--amber)"></div><div>Smartphone-Konzept, das gut aussieht > mittelmäßiges Kamera-Konzept</div></div>
+      <div class="phase-item"><div class="dot" style="background:var(--amber)"></div><div>Authentizität (Freundeskreis) schlägt Professionalität</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Checkliste Drehtag</h3>
+    <div id="shoot-checks"></div>
+    <button class="btn btn-sm mt1" onclick="resetShootChecks()">Zurücksetzen</button>
+  </div>
+
+  <div class="card">
+    <h3>Referenz-Ästhetik</h3>
+    <div class="row"><div><div class="row-label">Bon Iver — "Skinny Love"</div><div class="row-meta">Einfachste Mittel, maximale Intimität.</div></div></div>
+    <div class="row"><div><div class="row-label">Phoebe Bridgers — "Savior Complex"</div><div class="row-meta">Narrative Spannung, einfache Bilder, starke Symbolik.</div></div></div>
+    <div class="row"><div><div class="row-label">Novo Amor — "Anchor"</div><div class="row-meta">Naturaufnahmen, atmosphärische Weite.</div></div></div>
+    <div class="row"><div><div class="row-label">Ben Howard — "Keep Your Head Up"</div><div class="row-meta">Authentizität, Bewegung, natürliches Licht.</div></div></div>
+  </div>
+</div>
+
+<!-- PANEL 6 — KPIs -->
+<div class="panel" id="panel-6">
+  <div class="card">
+    <h3>KPI-Tracking — aktueller Stand</h3>
+    <p class="small mute" style="margin-bottom:.75rem">Werte manuell aktualisieren (1× pro Woche genügt).</p>
+    <div class="kpi-grid" id="kpi-grid"></div>
+    <button class="btn btn-sm" onclick="toggleKpiForm()">+ Wert aktualisieren</button>
+    <div id="kpi-inline-form" class="kpi-inline-form hidden">
+      <h4>KPI aktualisieren</h4>
+      <div class="form-row"><label class="form-label">KPI</label><select id="kpi-select"></select></div>
+      <div class="form-row"><label class="form-label">Neuer Wert</label><input type="text" id="kpi-value" placeholder="z.B. 1.240" onkeydown="if(event.key==='Enter')saveKpi()"></div>
+      <div class="flex gap2"><button class="btn btn-primary btn-sm" onclick="saveKpi()">Speichern</button><button class="btn btn-sm" onclick="toggleKpiForm()">Abbrechen</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Wachstumsziele — 12-Monats-Horizont</h3>
+    <div class="row"><div><div class="row-label">Spotify monatliche Hörer:innen</div><div class="row-meta">Ziel: 1.000 nach Monat 6 / 5.000 nach Monat 12</div></div></div>
+    <div class="row"><div><div class="row-label">Newsletter-Abonnenten</div><div class="row-meta">Ziel: 100 nach Monat 6 / 300 nach Monat 12</div></div></div>
+    <div class="row"><div><div class="row-label">Instagram-Follower</div><div class="row-meta">Ziel: 500 nach Monat 6 / 2.000 nach Monat 12</div></div></div>
+    <div class="row"><div><div class="row-label">Playlist-Platzierungen</div><div class="row-meta">Ziel: 5 pro Song / 20 nach EP-Release</div></div></div>
+    <div class="row"><div><div class="row-label">YouTube-Aufrufe (Musikvideos)</div><div class="row-meta">Ziel: 500 pro Video nach 3 Monaten</div></div></div>
+  </div>
+</div>
+
+<!-- PANEL 7 — Risiken -->
+<div class="panel" id="panel-7">
+  <div class="card">
+    <h3>Die 5 größten Risiken — und Gegenmaßnahmen</h3>
+    <div class="risk-item"><div class="risk-title"><span class="pill pill-warn" style="margin-right:8px">R1</span>Burnout durch Überlast</div><div class="risk-fix">System konsequent auf 30 min/Tag begrenzen. Sonntag als Ruhetag ist nicht verhandelbar. Pausieren ist erlaubt — aufgeben nicht.</div></div>
+    <div class="risk-item"><div class="risk-title"><span class="pill pill-warn" style="margin-right:8px">R2</span>Unregelmäßiger Release-Rhythmus</div><div class="risk-fix">Songs vorproduzieren, bevor die Release-Maschinerie startet. Immer mindestens 2 Songs als Puffer fertig halten.</div></div>
+    <div class="risk-item"><div class="risk-title"><span class="pill pill-warn" style="margin-right:8px">R3</span>Keine Resonanz der ersten Releases</div><div class="risk-fix">Erfolg neu definieren: Ein treuer Fan ist mehr wert als 1.000 passive Streams. Wachstum im Indie-Bereich ist langsam und kompoundiert sich über Jahre.</div></div>
+    <div class="risk-item"><div class="risk-title"><span class="pill pill-warn" style="margin-right:8px">R4</span>Budget erschöpft, kein Hebel</div><div class="risk-fix">80 % der wirksamsten Maßnahmen kosten nichts: Editorial Pitch, Newsletter, organische Reels. Nie Geld für Fake-Follower ausgeben.</div></div>
+    <div class="risk-item"><div class="risk-title"><span class="pill pill-warn" style="margin-right:8px">R5</span>Verlust der künstlerischen Identität</div><div class="risk-fix">Mission Statement schreiben und sichtbar halten. Jede Maßnahme fragen: Passt das zu meiner Musik? Wenn nicht — weglassen.</div></div>
+  </div>
+  <div class="card">
+    <h3>Die 3 wichtigsten Hebel für langfristigen Erfolg</h3>
+    <div class="mvas-lever"><div class="mvas-num" style="color:var(--green);font-size:20px">↑</div><div class="mvas-text"><div class="title">Konsequenz über Jahre — nicht Sprint, sondern Marathon</div><div class="desc">Bon Iver, Phoebe Bridgers, Novo Amor — alle diese Karrieren entstanden über viele Jahre konsequenter Arbeit. Durability schlägt Virality.</div></div></div>
+    <div class="mvas-lever"><div class="mvas-num" style="color:var(--green);font-size:20px">↑</div><div class="mvas-text"><div class="title">Künstlerische Qualität als Fundament</div><div class="desc">Kein Marketing der Welt kompensiert einen mittelmäßigen Song dauerhaft. Die Musik selbst ist das beste Marketing.</div></div></div>
+    <div class="mvas-lever"><div class="mvas-num" style="color:var(--green);font-size:20px">↑</div><div class="mvas-text"><div class="title">Echte Verbindung zur Community</div><div class="desc">Kommentare beantworten, echte Geschichten erzählen, den Menschen hinter der Musik zeigen. Das schafft Fans — keine Follower.</div></div></div>
+  </div>
+</div>
+
+<!-- PANEL 8 — Ideen -->
+<div class="panel" id="panel-8">
+  <div class="card">
+    <h3>Ideen-Parkplatz</h3>
+    <p class="small mute" style="margin-bottom:.75rem">Notiere Ideen, ohne sie sofort umzusetzen. Im nächsten Weekly Review aussortieren.</p>
+    <div class="flex gap2" style="flex-wrap:wrap">
+      <input type="text" id="idea-input" placeholder="Neue Idee eingeben…" style="flex:1;min-width:200px" onkeydown="if(event.key==='Enter')addIdea()">
+      <button class="btn" onclick="addIdea()">+ Hinzufügen</button>
+    </div>
+    <div id="idea-list" class="mt1"></div>
+  </div>
+  <div class="card">
+    <h3>Fehlende Datenpunkte für das vollständige System</h3>
+    <div class="row"><div class="row-label">Künstlername & Positionierungstext (Bio)</div><span class="pill pill-open">fehlt</span></div>
+    <div class="row"><div class="row-label">Titel der vier EP-Songs</div><span class="pill pill-open">fehlt</span></div>
+    <div class="row"><div class="row-label">Social-Media-Accounts + Links</div><span class="pill pill-open">fehlt</span></div>
+    <div class="row"><div class="row-label">Geplanter Release-Monat für Song 1</div><span class="pill pill-open">fehlt</span></div>
+    <div class="row"><div class="row-label">Netzwerk: Fotograf, Kamera, Schauspieler:in</div><span class="pill pill-should">wichtig</span></div>
+    <div class="row"><div class="row-label">Mission Statement / Vision in einem Satz</div><span class="pill pill-must">Fundament</span></div>
+  </div>
+  <div class="card">
+    <h3>Ressourcen-Datenbank</h3>
+    <p class="small mute" style="margin-bottom:.75rem">Trage hier dein Netzwerk ein.</p>
+    <div id="resources-list"></div>
+    <div class="flex gap2 mt1" style="flex-wrap:wrap">
+      <select id="res-type" style="width:140px">
+        <option value="Schauspieler:in">Schauspieler:in</option>
+        <option value="Fotograf:in">Fotograf:in</option>
+        <option value="Kamera">Kamerafrau/-mann</option>
+        <option value="Cutter:in">Cutter:in</option>
+        <option value="Presse">Pressekontakt</option>
+        <option value="Kurator:in">Playlist-Kurator</option>
+        <option value="Location">Drehort</option>
+        <option value="Sonstiges">Sonstiges</option>
+      </select>
+      <input type="text" id="res-name" placeholder="Name oder Beschreibung" style="flex:1;min-width:120px" onkeydown="if(event.key==='Enter')addResource()">
+      <button class="btn btn-sm" onclick="addResource()">+ Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+</main>
+
+
+
+<script>
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function saveS(k,v){try{localStorage.setItem('aos_'+k,JSON.stringify(v));}catch(e){}}
+function loadS(k,fb){try{var v=localStorage.getItem('aos_'+k);return v!==null?JSON.parse(v):fb;}catch(e){return fb;}}
+
+// Navigation
+document.querySelectorAll('.nav-tab').forEach(function(tab){
+  tab.addEventListener('click',function(){
+    var n=tab.dataset.panel;
+    document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('on');});
+    document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
+    tab.classList.add('on');
+    document.getElementById('panel-'+n).classList.add('on');
+    saveS('activeTab',n);
+  });
+});
+var savedTab=loadS('activeTab','0');
+document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('on');});
+document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
+var atEl=document.querySelector('[data-panel="'+savedTab+'"]');
+if(atEl)atEl.classList.add('on');
+var apEl=document.getElementById('panel-'+savedTab);
+if(apEl)apEl.classList.add('on');
+
+// Weekly checks
+var defaultChecks=[
+  {label:'Spotify Editorial Pitch einreichen (7+ Tage vor Release)',checked:false},
+  {label:'Release bei Distributor hochladen',checked:false},
+  {label:'Pressetext Song fertigstellen',checked:false},
+  {label:'3 Playlist-Kuratoren anschreiben',checked:false},
+  {label:'Newsletter-Ankündigung senden',checked:false},
+  {label:'Wöchentliches 30-min-Review (Freitag)',checked:false}
+];
+function renderChecks(){
+  var checks=loadS('checks',defaultChecks);
+  var el=document.getElementById('weekly-checks');
+  if(!checks.length){el.innerHTML='<div class="empty">Noch keine Aufgaben.</div>';return;}
+  el.innerHTML=checks.map(function(c,i){return'<div class="check-item'+(c.checked?' checked':'')+'" onclick="toggleCheck('+i+')"><input type="checkbox"'+(c.checked?' checked':'')+' onclick="event.stopPropagation();toggleCheck('+i+')"><span class="check-label">'+esc(c.label)+'</span></div>';}).join('');
+}
+function toggleCheck(i){var checks=loadS('checks',defaultChecks);checks[i].checked=!checks[i].checked;saveS('checks',checks);renderChecks();}
+function addCheck(){var inp=document.getElementById('check-input');var v=inp.value.trim();if(!v)return;var checks=loadS('checks',defaultChecks);checks.push({label:v,checked:false});saveS('checks',checks);inp.value='';renderChecks();}
+function resetChecks(){var checks=loadS('checks',defaultChecks);checks.forEach(function(c){c.checked=false;});saveS('checks',checks);renderChecks();}
+
+// Decisions
+var defaultDecisions=['Reihenfolge der vier Songs festlegen','Video-Drehtag für Song 1 & 2 koordinieren','Newsletter-Tool wählen (Substack empfohlen)','Instagram vs. TikTok — welcher Kanal zuerst?'];
+function renderDecisions(){
+  var decisions=loadS('decisions',defaultDecisions);
+  var el=document.getElementById('decisions-list');
+  if(!decisions.length){el.innerHTML='<div class="empty">Keine offenen Entscheidungen.</div>';return;}
+  el.innerHTML=decisions.map(function(d,i){return'<div class="row"><div class="row-label">'+esc(d)+'</div><button class="del-btn" onclick="removeDecision('+i+')" title="Erledigt">×</button></div>';}).join('');
+}
+function addDecision(){var inp=document.getElementById('decision-input');var v=inp.value.trim();if(!v)return;var decisions=loadS('decisions',defaultDecisions);decisions.push(v);saveS('decisions',decisions);inp.value='';renderDecisions();}
+function removeDecision(i){var decisions=loadS('decisions',defaultDecisions);decisions.splice(i,1);saveS('decisions',decisions);renderDecisions();}
+
+// Budget
+var defaultBudget=[
+  {label:'Musikvideo (kleines Team, Freundeskreis)',amount:150},
+  {label:'Playlist-Pitching (SubmitHub Credits)',amount:30},
+  {label:'Social-Boost (Instagram/Facebook Ads)',amount:100},
+  {label:'Mastering (Landr / AAMS)',amount:50},
+  {label:'Cover-Artwork',amount:30},
+  {label:'Presse / Blog-Outreach',amount:80},
+  {label:'Reserve / Unvorhergesehenes',amount:60}
+];
+function renderBudget(){
+  var items=loadS('budget',defaultBudget);
+  var el=document.getElementById('budget-items');
+  el.innerHTML=items.map(function(b){return'<div class="budget-item"><span>'+esc(b.label)+'</span><span style="font-weight:500">'+b.amount+' \u20ac</span></div>';}).join('');
+  var expenses=loadS('expenses',[]);
+  var spent=expenses.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+  var total=500;
+  var pct=Math.min(100,Math.round(spent/total*100));
+  document.getElementById('budget-bar').style.width=pct+'%';
+  document.getElementById('budget-bar').style.background=pct>85?'var(--red)':'var(--blue)';
+  document.getElementById('budget-remaining').textContent=spent.toFixed(0)+' \u20ac ausgegeben \u00b7 '+(total-spent).toFixed(0)+' \u20ac verbleiben';
+}
+function renderExpenses(){
+  var expenses=loadS('expenses',[]);
+  var el=document.getElementById('expenses-list');
+  if(!expenses.length){el.innerHTML='<div class="empty">Noch keine Ausgaben erfasst.</div>';return;}
+  el.innerHTML=expenses.map(function(e,i){return'<div class="idea-entry"><span>'+esc(e.name)+' \u2014 <strong>'+esc(e.amount)+' \u20ac</strong></span><button class="del-btn" onclick="removeExpense('+i+')">×</button></div>';}).join('');
+  renderBudget();
+}
+function addExpense(){var name=document.getElementById('exp-name').value.trim();var amount=document.getElementById('exp-amount').value.trim();if(!name||!amount)return;var expenses=loadS('expenses',[]);expenses.push({name:name,amount:amount});saveS('expenses',expenses);document.getElementById('exp-name').value='';document.getElementById('exp-amount').value='';renderExpenses();}
+function removeExpense(i){var expenses=loadS('expenses',[]);expenses.splice(i,1);saveS('expenses',expenses);renderExpenses();}
+
+// Shoot checks
+var defaultShootChecks=[
+  {label:'Locations vorab besichtigt & Lichtverhältnisse gecheckt',checked:false},
+  {label:'Kamera (Smartphone ok), Stativ, Mikrofon',checked:false},
+  {label:'Song auf Lautsprecher für Playback bereit',checked:false},
+  {label:'Konzept für jede Szene vorab skizziert',checked:false},
+  {label:'Darsteller:innen bestätigt',checked:false},
+  {label:'Verpflegung organisiert',checked:false},
+  {label:'B-Roll gezielt extra drehen (Hände, Natur, Details)',checked:false},
+  {label:'Behind-the-Scenes-Clip für Social Media drehen',checked:false},
+  {label:'Footage für Song 2 gleich mitnehmen',checked:false},
+  {label:'Rohmaterial sofort auf externe Festplatte sichern',checked:false}
+];
+function renderShootChecks(){
+  var checks=loadS('shootchecks',defaultShootChecks);
+  var el=document.getElementById('shoot-checks');
+  el.innerHTML=checks.map(function(c,i){return'<div class="check-item'+(c.checked?' checked':'')+'" onclick="toggleShootCheck('+i+')"><input type="checkbox"'+(c.checked?' checked':'')+' onclick="event.stopPropagation();toggleShootCheck('+i+')"><span class="check-label">'+esc(c.label)+'</span></div>';}).join('');
+}
+function toggleShootCheck(i){var checks=loadS('shootchecks',defaultShootChecks);checks[i].checked=!checks[i].checked;saveS('shootchecks',checks);renderShootChecks();}
+function resetShootChecks(){var checks=loadS('shootchecks',defaultShootChecks);checks.forEach(function(c){c.checked=false;});saveS('shootchecks',checks);renderShootChecks();}
+
+// KPIs
+var defaultKpis=[
+  {label:'Spotify Hörer:innen / Monat',value:'\u2014'},
+  {label:'Newsletter-Abonnenten',value:'\u2014'},
+  {label:'Instagram-Follower',value:'\u2014'},
+  {label:'YouTube-Aufrufe',value:'\u2014'},
+  {label:'Playlist-Platzierungen',value:'\u2014'},
+  {label:'TikTok-Follower',value:'\u2014'}
+];
+function renderKpis(){
+  var kpis=loadS('kpis',defaultKpis);
+  var el=document.getElementById('kpi-grid');
+  el.innerHTML=kpis.map(function(k){return'<div class="kpi-card"><div class="kpi-lbl">'+esc(k.label)+'</div><div class="kpi-val">'+esc(k.value)+'</div></div>';}).join('');
+  var sel=document.getElementById('kpi-select');
+  if(sel)sel.innerHTML=kpis.map(function(k,i){return'<option value="'+i+'">'+esc(k.label)+'</option>';}).join('');
+}
+function toggleKpiForm(){var f=document.getElementById('kpi-inline-form');var hidden=f.classList.toggle('hidden');if(!hidden){renderKpis();document.getElementById('kpi-value').focus();}}
+function saveKpi(){var i=parseInt(document.getElementById('kpi-select').value);var v=document.getElementById('kpi-value').value.trim();if(!v)return;var kpis=loadS('kpis',defaultKpis);kpis[i].value=v;saveS('kpis',kpis);document.getElementById('kpi-value').value='';renderKpis();document.getElementById('kpi-inline-form').classList.add('hidden');}
+
+// Ideas
+function renderIdeas(){
+  var ideas=loadS('ideas',[]);
+  var el=document.getElementById('idea-list');
+  if(!ideas.length){el.innerHTML='<div class="empty">Noch keine Ideen \u2014 einfach losschreiben.</div>';return;}
+  el.innerHTML=ideas.map(function(idea,i){return'<div class="idea-entry"><span>'+esc(idea)+'</span><button class="del-btn" onclick="removeIdea('+i+')" title="L\u00f6schen">\u00d7</button></div>';}).join('');
+}
+function addIdea(){var inp=document.getElementById('idea-input');var v=inp.value.trim();if(!v)return;var ideas=loadS('ideas',[]);ideas.unshift(v);saveS('ideas',ideas);inp.value='';renderIdeas();}
+function removeIdea(i){var ideas=loadS('ideas',[]);ideas.splice(i,1);saveS('ideas',ideas);renderIdeas();}
+
+// Resources
+function renderResources(){
+  var resources=loadS('resources',[]);
+  var el=document.getElementById('resources-list');
+  if(!resources.length){el.innerHTML='<div class="empty">Noch keine Ressourcen eingetragen.</div>';return;}
+  el.innerHTML=resources.map(function(r,i){return'<div class="idea-entry"><span><span class="tag">'+esc(r.type)+'</span> '+esc(r.name)+'</span><button class="del-btn" onclick="removeResource('+i+')">\u00d7</button></div>';}).join('');
+}
+function addResource(){var type=document.getElementById('res-type').value;var name=document.getElementById('res-name').value.trim();if(!name)return;var resources=loadS('resources',[]);resources.push({type:type,name:name});saveS('resources',resources);document.getElementById('res-name').value='';renderResources();}
+function removeResource(i){var resources=loadS('resources',[]);resources.splice(i,1);saveS('resources',resources);renderResources();}
+
+// Init
+renderChecks();renderDecisions();renderBudget();renderExpenses();renderShootChecks();renderKpis();renderIdeas();renderResources();
+</script>
+</body>
+</html>
