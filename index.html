@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Artist Operating System</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -131,6 +132,7 @@
 
 <header>
   <div class="logo">Artist OS <span>— Dein persönliches Karriere-System</span></div>
+  <div id="sync-status" style="margin-left:auto;font-size:12px;color:var(--mute)">&#9679; wird geladen…</div>
 </header>
 
 <nav id="nav">
@@ -474,11 +476,96 @@
 
 
 <script>
+// ══════════════════════════════════════════
+// KONFIGURATION — hier deine Supabase-Daten eintragen
+// ══════════════════════════════════════════
+var SUPABASE_URL = 'DEINE_SUPABASE_URL';      // z.B. https://xyz.supabase.co
+var SUPABASE_KEY = 'DEIN_SUPABASE_ANON_KEY';  // langer API-Key aus Supabase
+
+// ══════════════════════════════════════════
+// SUPABASE SETUP
+// ══════════════════════════════════════════
+var db = null;
+var dbReady = false;
+
+function initSupabase() {
+  try {
+    if (typeof supabase !== 'undefined' &&
+        SUPABASE_URL !== 'DEINE_SUPABASE_URL' &&
+        SUPABASE_KEY !== 'DEIN_SUPABASE_ANON_KEY') {
+      db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      dbReady = true;
+      showSyncStatus('cloud');
+      loadAllFromDB();
+    } else {
+      showSyncStatus('local');
+    }
+  } catch(e) {
+    showSyncStatus('local');
+  }
+}
+
+function showSyncStatus(mode) {
+  var el = document.getElementById('sync-status');
+  if (!el) return;
+  if (mode === 'cloud') {
+    el.innerHTML = '<span style="color:var(--green)">&#9679; Cloud-Sync aktiv</span>';
+  } else {
+    el.innerHTML = '<span style="color:var(--amber)">&#9679; Lokaler Speicher (kein Supabase konfiguriert)</span>';
+  }
+}
+
+// ══════════════════════════════════════════
+// DB LESEN / SCHREIBEN
+// ══════════════════════════════════════════
+async function dbGet(key, fallback) {
+  if (!dbReady) return loadS(key, fallback);
+  try {
+    var res = await db.from('artist_os').select('value').eq('key', key).single();
+    if (res.data && res.data.value !== undefined) {
+      var val = res.data.value;
+      saveS(key, val); // lokalen Cache aktualisieren
+      return val;
+    }
+    return loadS(key, fallback);
+  } catch(e) {
+    return loadS(key, fallback);
+  }
+}
+
+async function dbSet(key, val) {
+  saveS(key, val); // immer auch lokal speichern
+  if (!dbReady) return;
+  try {
+    await db.from('artist_os').upsert({ key: key, value: val }, { onConflict: 'key' });
+  } catch(e) {
+    console.warn('Supabase write failed, saved locally:', e);
+  }
+}
+
+async function loadAllFromDB() {
+  if (!dbReady) return;
+  try {
+    var res = await db.from('artist_os').select('key, value');
+    if (res.data) {
+      res.data.forEach(function(row) {
+        saveS(row.key, row.value);
+      });
+      renderAll();
+    }
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════
+// STORAGE HELPERS (localStorage Fallback)
+// ══════════════════════════════════════════
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function saveS(k,v){try{localStorage.setItem('aos_'+k,JSON.stringify(v));}catch(e){}}
 function loadS(k,fb){try{var v=localStorage.getItem('aos_'+k);return v!==null?JSON.parse(v):fb;}catch(e){return fb;}}
 
-// Navigation
+// ══════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════
 document.querySelectorAll('.nav-tab').forEach(function(tab){
   tab.addEventListener('click',function(){
     var n=tab.dataset.panel;
@@ -486,7 +573,7 @@ document.querySelectorAll('.nav-tab').forEach(function(tab){
     document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
     tab.classList.add('on');
     document.getElementById('panel-'+n).classList.add('on');
-    saveS('activeTab',n);
+    dbSet('activeTab',n);
   });
 });
 var savedTab=loadS('activeTab','0');
@@ -497,7 +584,9 @@ if(atEl)atEl.classList.add('on');
 var apEl=document.getElementById('panel-'+savedTab);
 if(apEl)apEl.classList.add('on');
 
-// Weekly checks
+// ══════════════════════════════════════════
+// WEEKLY CHECKS
+// ══════════════════════════════════════════
 var defaultChecks=[
   {label:'Spotify Editorial Pitch einreichen (7+ Tage vor Release)',checked:false},
   {label:'Release bei Distributor hochladen',checked:false},
@@ -509,25 +598,60 @@ var defaultChecks=[
 function renderChecks(){
   var checks=loadS('checks',defaultChecks);
   var el=document.getElementById('weekly-checks');
+  if(!el)return;
   if(!checks.length){el.innerHTML='<div class="empty">Noch keine Aufgaben.</div>';return;}
   el.innerHTML=checks.map(function(c,i){return'<div class="check-item'+(c.checked?' checked':'')+'" onclick="toggleCheck('+i+')"><input type="checkbox"'+(c.checked?' checked':'')+' onclick="event.stopPropagation();toggleCheck('+i+')"><span class="check-label">'+esc(c.label)+'</span></div>';}).join('');
 }
-function toggleCheck(i){var checks=loadS('checks',defaultChecks);checks[i].checked=!checks[i].checked;saveS('checks',checks);renderChecks();}
-function addCheck(){var inp=document.getElementById('check-input');var v=inp.value.trim();if(!v)return;var checks=loadS('checks',defaultChecks);checks.push({label:v,checked:false});saveS('checks',checks);inp.value='';renderChecks();}
-function resetChecks(){var checks=loadS('checks',defaultChecks);checks.forEach(function(c){c.checked=false;});saveS('checks',checks);renderChecks();}
+function toggleCheck(i){
+  var checks=loadS('checks',defaultChecks);
+  checks[i].checked=!checks[i].checked;
+  dbSet('checks',checks);
+  renderChecks();
+}
+function addCheck(){
+  var inp=document.getElementById('check-input');
+  var v=inp.value.trim();if(!v)return;
+  var checks=loadS('checks',defaultChecks);
+  checks.push({label:v,checked:false});
+  dbSet('checks',checks);
+  inp.value='';renderChecks();
+}
+function resetChecks(){
+  var checks=loadS('checks',defaultChecks);
+  checks.forEach(function(c){c.checked=false;});
+  dbSet('checks',checks);
+  renderChecks();
+}
 
-// Decisions
+// ══════════════════════════════════════════
+// DECISIONS
+// ══════════════════════════════════════════
 var defaultDecisions=['Reihenfolge der vier Songs festlegen','Video-Drehtag für Song 1 & 2 koordinieren','Newsletter-Tool wählen (Substack empfohlen)','Instagram vs. TikTok — welcher Kanal zuerst?'];
 function renderDecisions(){
   var decisions=loadS('decisions',defaultDecisions);
   var el=document.getElementById('decisions-list');
+  if(!el)return;
   if(!decisions.length){el.innerHTML='<div class="empty">Keine offenen Entscheidungen.</div>';return;}
   el.innerHTML=decisions.map(function(d,i){return'<div class="row"><div class="row-label">'+esc(d)+'</div><button class="del-btn" onclick="removeDecision('+i+')" title="Erledigt">×</button></div>';}).join('');
 }
-function addDecision(){var inp=document.getElementById('decision-input');var v=inp.value.trim();if(!v)return;var decisions=loadS('decisions',defaultDecisions);decisions.push(v);saveS('decisions',decisions);inp.value='';renderDecisions();}
-function removeDecision(i){var decisions=loadS('decisions',defaultDecisions);decisions.splice(i,1);saveS('decisions',decisions);renderDecisions();}
+function addDecision(){
+  var inp=document.getElementById('decision-input');
+  var v=inp.value.trim();if(!v)return;
+  var decisions=loadS('decisions',defaultDecisions);
+  decisions.push(v);
+  dbSet('decisions',decisions);
+  inp.value='';renderDecisions();
+}
+function removeDecision(i){
+  var decisions=loadS('decisions',defaultDecisions);
+  decisions.splice(i,1);
+  dbSet('decisions',decisions);
+  renderDecisions();
+}
 
-// Budget
+// ══════════════════════════════════════════
+// BUDGET
+// ══════════════════════════════════════════
 var defaultBudget=[
   {label:'Musikvideo (kleines Team, Freundeskreis)',amount:150},
   {label:'Playlist-Pitching (SubmitHub Credits)',amount:30},
@@ -540,26 +664,45 @@ var defaultBudget=[
 function renderBudget(){
   var items=loadS('budget',defaultBudget);
   var el=document.getElementById('budget-items');
+  if(!el)return;
   el.innerHTML=items.map(function(b){return'<div class="budget-item"><span>'+esc(b.label)+'</span><span style="font-weight:500">'+b.amount+' \u20ac</span></div>';}).join('');
   var expenses=loadS('expenses',[]);
   var spent=expenses.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
-  var total=500;
-  var pct=Math.min(100,Math.round(spent/total*100));
-  document.getElementById('budget-bar').style.width=pct+'%';
-  document.getElementById('budget-bar').style.background=pct>85?'var(--red)':'var(--blue)';
-  document.getElementById('budget-remaining').textContent=spent.toFixed(0)+' \u20ac ausgegeben \u00b7 '+(total-spent).toFixed(0)+' \u20ac verbleiben';
+  var total=500;var pct=Math.min(100,Math.round(spent/total*100));
+  var bar=document.getElementById('budget-bar');
+  if(bar){bar.style.width=pct+'%';bar.style.background=pct>85?'var(--red)':'var(--blue)';}
+  var rem=document.getElementById('budget-remaining');
+  if(rem)rem.textContent=spent.toFixed(0)+' \u20ac ausgegeben \u00b7 '+(total-spent).toFixed(0)+' \u20ac verbleiben';
 }
 function renderExpenses(){
   var expenses=loadS('expenses',[]);
   var el=document.getElementById('expenses-list');
+  if(!el)return;
   if(!expenses.length){el.innerHTML='<div class="empty">Noch keine Ausgaben erfasst.</div>';return;}
-  el.innerHTML=expenses.map(function(e,i){return'<div class="idea-entry"><span>'+esc(e.name)+' \u2014 <strong>'+esc(e.amount)+' \u20ac</strong></span><button class="del-btn" onclick="removeExpense('+i+')">×</button></div>';}).join('');
+  el.innerHTML=expenses.map(function(e,i){return'<div class="idea-entry"><span>'+esc(e.name)+' \u2014 <strong>'+esc(e.amount)+' \u20ac</strong></span><button class="del-btn" onclick="removeExpense('+i+')">\u00d7</button></div>';}).join('');
   renderBudget();
 }
-function addExpense(){var name=document.getElementById('exp-name').value.trim();var amount=document.getElementById('exp-amount').value.trim();if(!name||!amount)return;var expenses=loadS('expenses',[]);expenses.push({name:name,amount:amount});saveS('expenses',expenses);document.getElementById('exp-name').value='';document.getElementById('exp-amount').value='';renderExpenses();}
-function removeExpense(i){var expenses=loadS('expenses',[]);expenses.splice(i,1);saveS('expenses',expenses);renderExpenses();}
+function addExpense(){
+  var name=document.getElementById('exp-name').value.trim();
+  var amount=document.getElementById('exp-amount').value.trim();
+  if(!name||!amount)return;
+  var expenses=loadS('expenses',[]);
+  expenses.push({name:name,amount:amount});
+  dbSet('expenses',expenses);
+  document.getElementById('exp-name').value='';
+  document.getElementById('exp-amount').value='';
+  renderExpenses();
+}
+function removeExpense(i){
+  var expenses=loadS('expenses',[]);
+  expenses.splice(i,1);
+  dbSet('expenses',expenses);
+  renderExpenses();
+}
 
-// Shoot checks
+// ══════════════════════════════════════════
+// SHOOT CHECKS
+// ══════════════════════════════════════════
 var defaultShootChecks=[
   {label:'Locations vorab besichtigt & Lichtverhältnisse gecheckt',checked:false},
   {label:'Kamera (Smartphone ok), Stativ, Mikrofon',checked:false},
@@ -575,12 +718,25 @@ var defaultShootChecks=[
 function renderShootChecks(){
   var checks=loadS('shootchecks',defaultShootChecks);
   var el=document.getElementById('shoot-checks');
+  if(!el)return;
   el.innerHTML=checks.map(function(c,i){return'<div class="check-item'+(c.checked?' checked':'')+'" onclick="toggleShootCheck('+i+')"><input type="checkbox"'+(c.checked?' checked':'')+' onclick="event.stopPropagation();toggleShootCheck('+i+')"><span class="check-label">'+esc(c.label)+'</span></div>';}).join('');
 }
-function toggleShootCheck(i){var checks=loadS('shootchecks',defaultShootChecks);checks[i].checked=!checks[i].checked;saveS('shootchecks',checks);renderShootChecks();}
-function resetShootChecks(){var checks=loadS('shootchecks',defaultShootChecks);checks.forEach(function(c){c.checked=false;});saveS('shootchecks',checks);renderShootChecks();}
+function toggleShootCheck(i){
+  var checks=loadS('shootchecks',defaultShootChecks);
+  checks[i].checked=!checks[i].checked;
+  dbSet('shootchecks',checks);
+  renderShootChecks();
+}
+function resetShootChecks(){
+  var checks=loadS('shootchecks',defaultShootChecks);
+  checks.forEach(function(c){c.checked=false;});
+  dbSet('shootchecks',checks);
+  renderShootChecks();
+}
 
+// ══════════════════════════════════════════
 // KPIs
+// ══════════════════════════════════════════
 var defaultKpis=[
   {label:'Spotify Hörer:innen / Monat',value:'\u2014'},
   {label:'Newsletter-Abonnenten',value:'\u2014'},
@@ -616,34 +772,77 @@ function saveKpi(){
   if(!v||isNaN(i))return;
   var kpis=loadS('kpis',defaultKpis);
   kpis[i].value=v;
-  saveS('kpis',kpis);
+  dbSet('kpis',kpis);
   if(inp)inp.value='';
   renderKpis();
   document.getElementById('kpi-inline-form').classList.add('hidden');
 }
 
-// Ideas
+// ══════════════════════════════════════════
+// IDEAS
+// ══════════════════════════════════════════
 function renderIdeas(){
   var ideas=loadS('ideas',[]);
   var el=document.getElementById('idea-list');
+  if(!el)return;
   if(!ideas.length){el.innerHTML='<div class="empty">Noch keine Ideen \u2014 einfach losschreiben.</div>';return;}
   el.innerHTML=ideas.map(function(idea,i){return'<div class="idea-entry"><span>'+esc(idea)+'</span><button class="del-btn" onclick="removeIdea('+i+')" title="L\u00f6schen">\u00d7</button></div>';}).join('');
 }
-function addIdea(){var inp=document.getElementById('idea-input');var v=inp.value.trim();if(!v)return;var ideas=loadS('ideas',[]);ideas.unshift(v);saveS('ideas',ideas);inp.value='';renderIdeas();}
-function removeIdea(i){var ideas=loadS('ideas',[]);ideas.splice(i,1);saveS('ideas',ideas);renderIdeas();}
+function addIdea(){
+  var inp=document.getElementById('idea-input');
+  var v=inp.value.trim();if(!v)return;
+  var ideas=loadS('ideas',[]);
+  ideas.unshift(v);
+  dbSet('ideas',ideas);
+  inp.value='';renderIdeas();
+}
+function removeIdea(i){
+  var ideas=loadS('ideas',[]);
+  ideas.splice(i,1);
+  dbSet('ideas',ideas);
+  renderIdeas();
+}
 
-// Resources
+// ══════════════════════════════════════════
+// RESOURCES
+// ══════════════════════════════════════════
 function renderResources(){
   var resources=loadS('resources',[]);
   var el=document.getElementById('resources-list');
+  if(!el)return;
   if(!resources.length){el.innerHTML='<div class="empty">Noch keine Ressourcen eingetragen.</div>';return;}
   el.innerHTML=resources.map(function(r,i){return'<div class="idea-entry"><span><span class="tag">'+esc(r.type)+'</span> '+esc(r.name)+'</span><button class="del-btn" onclick="removeResource('+i+')">\u00d7</button></div>';}).join('');
 }
-function addResource(){var type=document.getElementById('res-type').value;var name=document.getElementById('res-name').value.trim();if(!name)return;var resources=loadS('resources',[]);resources.push({type:type,name:name});saveS('resources',resources);document.getElementById('res-name').value='';renderResources();}
-function removeResource(i){var resources=loadS('resources',[]);resources.splice(i,1);saveS('resources',resources);renderResources();}
+function addResource(){
+  var type=document.getElementById('res-type').value;
+  var name=document.getElementById('res-name').value.trim();
+  if(!name)return;
+  var resources=loadS('resources',[]);
+  resources.push({type:type,name:name});
+  dbSet('resources',resources);
+  document.getElementById('res-name').value='';
+  renderResources();
+}
+function removeResource(i){
+  var resources=loadS('resources',[]);
+  resources.splice(i,1);
+  dbSet('resources',resources);
+  renderResources();
+}
 
-// Init
-renderChecks();renderDecisions();renderBudget();renderExpenses();renderShootChecks();renderKpis();renderIdeas();renderResources();
+// ══════════════════════════════════════════
+// RENDER ALL (called after DB load)
+// ══════════════════════════════════════════
+function renderAll(){
+  renderChecks();renderDecisions();renderBudget();renderExpenses();
+  renderShootChecks();renderKpis();renderIdeas();renderResources();
+}
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+renderAll();
+initSupabase();
 </script>
 </body>
 </html>

@@ -142,3 +142,62 @@ Alle Farben sind als CSS-Variablen in `:root` definiert (Light Mode) und `@media
 ## Lizenz
 
 Persönliches Projekt — frei verwendbar, anpassbar und erweiterbar.
+
+---
+
+## Cloud-Sync mit Supabase einrichten
+
+Alle Daten werden standardmäßig im Browser-localStorage gespeichert. Mit Supabase werden sie zusätzlich in der Cloud gesichert und sind auf jedem Gerät verfügbar.
+
+### Schritt 1 — Supabase-Projekt anlegen
+
+1. Gehe zu [supabase.com](https://supabase.com) und erstelle einen kostenlosen Account
+2. Klicke auf **New project** — Name z.B. `artist-os`, Region `EU West`
+3. Warte ~1 Minute bis das Projekt bereit ist
+
+### Schritt 2 — Datenbank-Tabelle anlegen
+
+Im Supabase-Dashboard → **SQL Editor** → **New query** — diesen Code ausführen:
+
+```sql
+create table artist_os (
+  key   text primary key,
+  value jsonb not null,
+  updated_at timestamp with time zone default now()
+);
+
+-- Nur Zugriff mit dem API-Key erlauben (Row Level Security)
+alter table artist_os enable row level security;
+
+create policy "anon can read and write"
+  on artist_os
+  for all
+  to anon
+  using (true)
+  with check (true);
+```
+
+### Schritt 3 — API-Key in die App eintragen
+
+Im Supabase-Dashboard → **Project Settings** → **API**:
+
+- **Project URL** kopieren → in `index.html` bei `SUPABASE_URL` eintragen
+- **anon / public Key** kopieren → bei `SUPABASE_KEY` eintragen
+
+```js
+var SUPABASE_URL = 'https://DEINPROJEKT.supabase.co';
+var SUPABASE_KEY = 'eyJhbGciOi...langer Key...';
+```
+
+### Schritt 4 — Repo auf privat stellen
+
+Da der API-Key in der `index.html` steht:
+
+GitHub → Repository → **Settings** → **General** → **Danger Zone** → **Change repository visibility** → **Private**
+
+GitHub Pages funktioniert auch mit privaten Repos.
+
+### Fertig
+
+Nach dem nächsten Push erscheint in der App-Kopfzeile **"Cloud-Sync aktiv"** in grün.  
+Alle Änderungen werden ab sofort automatisch in Supabase gespeichert — und beim nächsten Öffnen auf jedem Gerät geladen.
