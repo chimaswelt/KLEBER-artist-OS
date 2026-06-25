@@ -592,12 +592,35 @@ var defaultKpis=[
 function renderKpis(){
   var kpis=loadS('kpis',defaultKpis);
   var el=document.getElementById('kpi-grid');
-  el.innerHTML=kpis.map(function(k){return'<div class="kpi-card"><div class="kpi-lbl">'+esc(k.label)+'</div><div class="kpi-val">'+esc(k.value)+'</div></div>';}).join('');
+  if(el)el.innerHTML=kpis.map(function(k){return'<div class="kpi-card"><div class="kpi-lbl">'+esc(k.label)+'</div><div class="kpi-val">'+esc(k.value)+'</div></div>';}).join('');
   var sel=document.getElementById('kpi-select');
   if(sel)sel.innerHTML=kpis.map(function(k,i){return'<option value="'+i+'">'+esc(k.label)+'</option>';}).join('');
 }
-function toggleKpiForm(){var f=document.getElementById('kpi-inline-form');var hidden=f.classList.toggle('hidden');if(!hidden){renderKpis();document.getElementById('kpi-value').focus();}}
-function saveKpi(){var i=parseInt(document.getElementById('kpi-select').value);var v=document.getElementById('kpi-value').value.trim();if(!v)return;var kpis=loadS('kpis',defaultKpis);kpis[i].value=v;saveS('kpis',kpis);document.getElementById('kpi-value').value='';renderKpis();document.getElementById('kpi-inline-form').classList.add('hidden');}
+function toggleKpiForm(){
+  var f=document.getElementById('kpi-inline-form');
+  if(f.classList.contains('hidden')){
+    renderKpis();
+    f.classList.remove('hidden');
+    setTimeout(function(){var inp=document.getElementById('kpi-value');if(inp)inp.focus();},50);
+  } else {
+    f.classList.add('hidden');
+    var inp=document.getElementById('kpi-value');
+    if(inp)inp.value='';
+  }
+}
+function saveKpi(){
+  var sel=document.getElementById('kpi-select');
+  var inp=document.getElementById('kpi-value');
+  var i=sel?parseInt(sel.value):0;
+  var v=inp?inp.value.trim():'';
+  if(!v||isNaN(i))return;
+  var kpis=loadS('kpis',defaultKpis);
+  kpis[i].value=v;
+  saveS('kpis',kpis);
+  if(inp)inp.value='';
+  renderKpis();
+  document.getElementById('kpi-inline-form').classList.add('hidden');
+}
 
 // Ideas
 function renderIdeas(){
