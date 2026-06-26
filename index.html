@@ -126,6 +126,40 @@
   .empty { font-size: 13px; color: var(--hint); padding: .75rem 0; font-style: italic; }
   .kpi-inline-form { background: var(--bg2); border-radius: var(--r); border: 0.5px solid var(--bord2); padding: 1rem; margin-top: .75rem; }
   .kpi-inline-form h4 { font-size: 13px; font-weight: 500; margin-bottom: .75rem; color: var(--mute); text-transform: uppercase; letter-spacing: .04em; }
+  /* Timeline */
+  .tl-wrap { position: relative; padding-left: 28px; }
+  .tl-wrap::before { content: ''; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px; background: var(--bord2); border-radius: 2px; }
+  .tl-item { position: relative; margin-bottom: 1.25rem; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -24px; top: 3px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--bg); box-shadow: 0 0 0 2px var(--bord2); background: var(--bg2); }
+  .tl-dot.done  { background: var(--green); box-shadow: 0 0 0 2px var(--green); }
+  .tl-dot.active{ background: var(--blue);  box-shadow: 0 0 0 2px var(--blue); }
+  .tl-dot.open  { background: var(--bg2);   box-shadow: 0 0 0 2px var(--bord2); }
+  .tl-date { font-size: 11px; color: var(--hint); margin-bottom: 2px; }
+  .tl-title { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+  .tl-desc  { font-size: 13px; color: var(--mute); }
+  .tl-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .tl-badge { font-size: 11px; padding: 2px 8px; border-radius: 100px; font-weight: 500; }
+  .tl-badge.done   { background: var(--green-bg); color: var(--green); }
+  .tl-badge.active { background: var(--blue-bg);  color: var(--blue); }
+  .tl-badge.open   { background: var(--gray-bg);  color: var(--gray); }
+  .tl-form { background: var(--bg2); border-radius: var(--r); border: 0.5px solid var(--bord2); padding: 1rem; margin-bottom: 1rem; }
+  .tl-form h4 { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing:.04em; color: var(--hint); margin-bottom: .75rem; }
+  /* Progress */
+  .prog-section { margin-bottom: 1.25rem; }
+  .prog-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: .5rem; }
+  .prog-label { font-size: 14px; font-weight: 500; }
+  .prog-pct { font-size: 13px; font-weight: 500; color: var(--blue); }
+  .prog-bar-wrap { background: var(--bg2); border-radius: 100px; height: 6px; overflow: hidden; margin-bottom: .5rem; }
+  .prog-bar-fill { height: 6px; border-radius: 100px; background: var(--blue); transition: width .4s; }
+  .prog-check { display: flex; align-items: flex-start; gap: 10px; padding: .4rem 0; border-bottom: 0.5px solid var(--bord); font-size: 13px; cursor: pointer; user-select: none; }
+  .prog-check:last-child { border-bottom: none; }
+  .prog-check input { margin-top: 2px; flex-shrink: 0; accent-color: var(--blue); }
+  .prog-check.done .prog-check-label { text-decoration: line-through; color: var(--hint); }
+  .prog-check-note { font-size: 11px; color: var(--hint); margin-top: 1px; }
+  .overall-ring { display: flex; align-items: center; gap: 1rem; padding: .75rem 0; }
+  .ring-num { font-size: 36px; font-weight: 500; color: var(--blue); line-height: 1; }
+  .ring-label { font-size: 13px; color: var(--mute); }
 </style>
 </head>
 <body>
@@ -145,6 +179,8 @@
   <div class="nav-tab"     data-panel="6">KPIs</div>
   <div class="nav-tab"     data-panel="7">Risiken</div>
   <div class="nav-tab"     data-panel="8">Ideen</div>
+  <div class="nav-tab"     data-panel="9">Timeline</div>
+  <div class="nav-tab"     data-panel="10">Fortschritt</div>
 </nav>
 
 <main>
@@ -471,6 +507,91 @@
   </div>
 </div>
 
+
+<!-- PANEL 9 — Timeline -->
+<div class="panel" id="panel-9">
+
+  <div class="card">
+    <h3>Release-Timeline</h3>
+    <div class="tl-wrap" id="tl-list">
+      <!-- rendered by JS -->
+    </div>
+  </div>
+
+  <div class="tl-form" id="tl-form-wrap">
+    <h4>Neuen Eintrag hinzufügen</h4>
+    <div class="two-col">
+      <div class="form-row">
+        <label class="form-label">Titel</label>
+        <input type="text" id="tl-title-inp" placeholder="z.B. Song 1 Release">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Datum</label>
+        <input type="text" id="tl-date-inp" placeholder="z.B. August 2026">
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="form-row">
+        <label class="form-label">Beschreibung</label>
+        <input type="text" id="tl-desc-inp" placeholder="z.B. Erste Single der EP">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Status</label>
+        <select id="tl-status-inp">
+          <option value="open">Geplant</option>
+          <option value="active">In Arbeit</option>
+          <option value="done">Veröffentlicht</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="addTlItem()">+ Hinzufügen</button>
+  </div>
+
+</div>
+
+<!-- PANEL 10 — Fortschritt -->
+<div class="panel" id="panel-10">
+
+  <div class="card">
+    <h3>Gesamtfortschritt</h3>
+    <div class="overall-ring">
+      <div class="ring-num" id="overall-pct">0%</div>
+      <div>
+        <div style="font-size:14px;font-weight:500">Alle Meilensteine</div>
+        <div class="ring-label" id="overall-sub">0 von 0 erledigt</div>
+      </div>
+    </div>
+    <div class="prog-bar-wrap">
+      <div class="prog-bar-fill" id="overall-bar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div id="progress-sections">
+    <!-- rendered by JS -->
+  </div>
+
+  <div class="card">
+    <h3>Eigenen Meilenstein hinzufügen</h3>
+    <div class="two-col">
+      <div class="form-row">
+        <label class="form-label">Kategorie</label>
+        <select id="prog-cat-inp">
+          <option value="Release">Release</option>
+          <option value="Video">Video</option>
+          <option value="Marketing">Marketing</option>
+          <option value="Community">Community</option>
+          <option value="Sonstiges">Sonstiges</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Meilenstein</label>
+        <input type="text" id="prog-label-inp" placeholder="z.B. EP fertig gemischt" onkeydown="if(event.key==='Enter')addProgItem()">
+      </div>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="addProgItem()">+ Hinzufügen</button>
+  </div>
+
+</div>
 </main>
 
 
@@ -479,8 +600,8 @@
 // ══════════════════════════════════════════
 // KONFIGURATION — hier deine Supabase-Daten eintragen
 // ══════════════════════════════════════════
-var SUPABASE_URL = 'https://gmttqlxqvqdukuspghoc.supabase.co';      // z.B. https://xyz.supabase.co
-var SUPABASE_KEY = 'sb_publishable_J-h6m1YD8Ad4nCE5IMKZcw_SZfQd4Ep';  // langer API-Key aus Supabase
+var SUPABASE_URL = 'DEINE_SUPABASE_URL';      // z.B. https://xyz.supabase.co
+var SUPABASE_KEY = 'DEIN_SUPABASE_ANON_KEY';  // langer API-Key aus Supabase
 
 // ══════════════════════════════════════════
 // SUPABASE SETUP
@@ -831,11 +952,166 @@ function removeResource(i){
 }
 
 // ══════════════════════════════════════════
+// TIMELINE
+// ══════════════════════════════════════════
+var defaultTimeline = [
+  { title: 'Song 1 Release', date: 'Monat 1', desc: 'Ankersong · erste Single der EP', status: 'open' },
+  { title: 'Song 2 Release', date: 'Monat 2', desc: 'Vertiefung · Momentum aufbauen', status: 'open' },
+  { title: 'Song 3 Release', date: 'Monat 3', desc: 'Brücke · neue Facette zeigen', status: 'open' },
+  { title: 'Song 4 + EP Release', date: 'Monat 4', desc: 'Abschluss · EP bündelt alles', status: 'open' }
+];
+
+function renderTimeline() {
+  var items = loadS('timeline', defaultTimeline);
+  var el = document.getElementById('tl-list');
+  if (!el) return;
+  if (!items.length) { el.innerHTML = '<div class="empty">Noch keine Einträge.</div>'; return; }
+  var statusLabel = { done: 'Veröffentlicht', active: 'In Arbeit', open: 'Geplant' };
+  el.innerHTML = items.map(function(item, i) {
+    return '<div class="tl-item">' +
+      '<div class="tl-dot ' + item.status + '"></div>' +
+      '<div class="tl-date">' + esc(item.date) + '</div>' +
+      '<div class="tl-title">' + esc(item.title) + '</div>' +
+      (item.desc ? '<div class="tl-desc">' + esc(item.desc) + '</div>' : '') +
+      '<div class="tl-actions">' +
+        '<span class="tl-badge ' + item.status + '">' + statusLabel[item.status] + '</span>' +
+        '<button class="btn btn-sm" onclick="cycleTlStatus(' + i + ')" style="padding:2px 8px;font-size:11px">Status ändern</button>' +
+        '<button class="del-btn" onclick="removeTlItem(' + i + ')" style="margin-left:4px">×</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function cycleTlStatus(i) {
+  var items = loadS('timeline', defaultTimeline);
+  var cycle = { open: 'active', active: 'done', done: 'open' };
+  items[i].status = cycle[items[i].status] || 'open';
+  dbSet('timeline', items);
+  renderTimeline();
+}
+
+function addTlItem() {
+  var title = document.getElementById('tl-title-inp').value.trim();
+  var date  = document.getElementById('tl-date-inp').value.trim();
+  var desc  = document.getElementById('tl-desc-inp').value.trim();
+  var status= document.getElementById('tl-status-inp').value;
+  if (!title) return;
+  var items = loadS('timeline', defaultTimeline);
+  items.push({ title: title, date: date, desc: desc, status: status });
+  dbSet('timeline', items);
+  document.getElementById('tl-title-inp').value = '';
+  document.getElementById('tl-date-inp').value = '';
+  document.getElementById('tl-desc-inp').value = '';
+  renderTimeline();
+}
+
+function removeTlItem(i) {
+  var items = loadS('timeline', defaultTimeline);
+  items.splice(i, 1);
+  dbSet('timeline', items);
+  renderTimeline();
+}
+
+// ══════════════════════════════════════════
+// PROGRESS
+// ══════════════════════════════════════════
+var defaultProgress = [
+  { cat: 'Release', label: 'Song 1 bei Distributor hochgeladen', done: false },
+  { cat: 'Release', label: 'Spotify Editorial Pitch eingereicht', done: false },
+  { cat: 'Release', label: 'Pressetext Song 1 fertiggestellt', done: false },
+  { cat: 'Release', label: 'Cover Artwork finalisiert', done: false },
+  { cat: 'Release', label: 'Song 1 veröffentlicht', done: false },
+  { cat: 'Release', label: 'Song 2 veröffentlicht', done: false },
+  { cat: 'Release', label: 'Song 3 veröffentlicht', done: false },
+  { cat: 'Release', label: 'EP veröffentlicht', done: false },
+  { cat: 'Video', label: 'Drehtag Song 1 & 2 koordiniert', done: false },
+  { cat: 'Video', label: 'Musikvideo Song 1 gedreht', done: false },
+  { cat: 'Video', label: 'Musikvideo Song 1 veröffentlicht', done: false },
+  { cat: 'Video', label: 'Musikvideo Song 2 gedreht', done: false },
+  { cat: 'Video', label: 'Musikvideo Song 2 veröffentlicht', done: false },
+  { cat: 'Marketing', label: 'Newsletter-Tool eingerichtet (Substack)', done: false },
+  { cat: 'Marketing', label: 'Erste Newsletter-Mail versendet', done: false },
+  { cat: 'Marketing', label: '5 Playlist-Kuratoren angeschrieben', done: false },
+  { cat: 'Marketing', label: 'Erste Playlist-Platzierung erreicht', done: false },
+  { cat: 'Marketing', label: 'Instagram Reels gestartet', done: false },
+  { cat: 'Community', label: '50 Newsletter-Abonnenten', done: false },
+  { cat: 'Community', label: '100 Newsletter-Abonnenten', done: false },
+  { cat: 'Community', label: 'Erstes Live-Konzert gespielt', done: false },
+  { cat: 'Community', label: 'Erste Kollaboration mit anderem Künstler', done: false }
+];
+
+function renderProgress() {
+  var items = loadS('progress', defaultProgress);
+  var el = document.getElementById('progress-sections');
+  if (!el) return;
+
+  // group by category
+  var cats = {};
+  items.forEach(function(item, i) {
+    if (!cats[item.cat]) cats[item.cat] = [];
+    cats[item.cat].push({ item: item, idx: i });
+  });
+
+  var totalDone = items.filter(function(x) { return x.done; }).length;
+  var totalAll  = items.length;
+  var totalPct  = totalAll ? Math.round(totalDone / totalAll * 100) : 0;
+
+  var pctEl = document.getElementById('overall-pct');
+  var subEl = document.getElementById('overall-sub');
+  var barEl = document.getElementById('overall-bar');
+  if (pctEl) pctEl.textContent = totalPct + '%';
+  if (subEl) subEl.textContent = totalDone + ' von ' + totalAll + ' erledigt';
+  if (barEl) barEl.style.width = totalPct + '%';
+
+  var catColors = { Release: 'var(--blue)', Video: 'var(--green)', Marketing: 'var(--amber)', Community: '#9B6CF2', Sonstiges: 'var(--gray)' };
+
+  el.innerHTML = Object.keys(cats).map(function(cat) {
+    var entries = cats[cat];
+    var done = entries.filter(function(e) { return e.item.done; }).length;
+    var pct  = entries.length ? Math.round(done / entries.length * 100) : 0;
+    var color = catColors[cat] || 'var(--blue)';
+
+    return '<div class="card prog-section">' +
+      '<div class="prog-header">' +
+        '<div class="prog-label">' + esc(cat) + '</div>' +
+        '<div class="prog-pct" style="color:' + color + '">' + pct + '%</div>' +
+      '</div>' +
+      '<div class="prog-bar-wrap"><div class="prog-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>' +
+      entries.map(function(e) {
+        return '<div class="prog-check' + (e.item.done ? ' done' : '') + '" onclick="toggleProgItem(' + e.idx + ')">' +
+          '<input type="checkbox"' + (e.item.done ? ' checked' : '') + ' onclick="event.stopPropagation();toggleProgItem(' + e.idx + ')">' +
+          '<span class="prog-check-label">' + esc(e.item.label) + '</span>' +
+          '</div>';
+      }).join('') +
+    '</div>';
+  }).join('');
+}
+
+function toggleProgItem(i) {
+  var items = loadS('progress', defaultProgress);
+  items[i].done = !items[i].done;
+  dbSet('progress', items);
+  renderProgress();
+}
+
+function addProgItem() {
+  var cat   = document.getElementById('prog-cat-inp').value;
+  var label = document.getElementById('prog-label-inp').value.trim();
+  if (!label) return;
+  var items = loadS('progress', defaultProgress);
+  items.push({ cat: cat, label: label, done: false });
+  dbSet('progress', items);
+  document.getElementById('prog-label-inp').value = '';
+  renderProgress();
+}
+
+// ══════════════════════════════════════════
 // RENDER ALL (called after DB load)
 // ══════════════════════════════════════════
 function renderAll(){
   renderChecks();renderDecisions();renderBudget();renderExpenses();
   renderShootChecks();renderKpis();renderIdeas();renderResources();
+  renderTimeline();renderProgress();
 }
 
 // ══════════════════════════════════════════
@@ -846,4 +1122,3 @@ initSupabase();
 </script>
 </body>
 </html>
-
